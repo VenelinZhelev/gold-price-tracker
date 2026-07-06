@@ -1,82 +1,59 @@
-import os
 import requests
 from datetime import datetime
-from dotenv import load_dotenv
 
-from database.database import SessionLocal
+from database.database import get_session
 from database.models import GoldPrice
-
-load_dotenv()
-
-API_KEY = os.getenv("API_KEY")
-
-BASE_URL = "https://api.metalpriceapi.com/v1/timeframe"
+from config import GOLD_API_KEY
 
 
-def fetch_data(start_date, end_date):
-    params = {
-        "api_key": API_KEY,
-        "base": "USD",
-        "currencies": "XAU",
-        "start_date": start_date,
-        "end_date": end_date
+URL = "https://www.goldapi.io/api/XAU/USD"
+
+
+headers = {
+    "x-access-token": GOLD_API_KEY,
+    "Content-Type": "application/json"
+}
+
+
+def fetch_gold_price():
+    response = requests.get(URL, headers=headers)
+    response.raise_for_status()
+
+    data = response.json()
+
+    return {
+        "date": datetime.utcnow().date(),
+        "price": data["price"],
+        "source": "GoldAPI"
     }
 
-    response = requests.get(BASE_URL, params=params)
-    response.raise_for_status()
-    return response.json()
 
+def save_price():
+    session = get_session()
 
-def validate(price, date_str):
-    if not date_str or not price:
-        return False
-    if float(price) <= 0:
-        return False
-    return True
+    gold = fetch_gold_price()
 
+    exists = session.query(GoldPrice).filter_by(
+        price_date=gold["date"]
+    ).first()
 
-def save_to_db(data):
-    session = SessionLocal()
+    if exists:
+        print("Today's price already exists.")
+        session.close()
+        return
 
-    rates = data.get("rates", {})
+    row = GoldPrice(
+        price_date=gold["date"],
+        price=gold["price"],
+        source=gold["source"]
+    )
 
-    for date_str, value in rates.items():
-
-        # API връща XAU -> злато
-        price = value.get("XAU")
-
-        if not validate(price, date_str):
-            continue
-
-        date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
-
-        # check duplicate
-        exists = session.query(GoldPrice).filter_by(price_date=date_obj).first()
-        if exists:
-            continue
-
-        row = GoldPrice(
-            price_date=date_obj,
-            price=float(price),
-            source="MetalPriceAPI"
-        )
-
-        session.add(row)
-
+    session.add(row)
     session.commit()
     session.close()
 
-
-def run():
-    # последни 3 години
-    start_date = "2023-01-01"
-    end_date = datetime.today().strftime("%Y-%m-%d")
-
-    data = fetch_data(start_date, end_date)
-    save_to_db(data)
-
-    print("Data successfully fetched and stored.")
+    print("Gold price saved successfully.")
 
 
 if __name__ == "__main__":
-    run()
+    save_price()

@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 API_KEY = os.getenv("API_KEY")
+GOLD_API_KEY = os.getenv("GOLD_API_KEY")
 
 DB_HOST = os.getenv("DB_HOST")
 DB_PORT = os.getenv("DB_PORT")
