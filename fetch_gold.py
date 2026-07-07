@@ -3,57 +3,51 @@ from datetime import datetime
 
 from database.database import get_session
 from database.models import GoldPrice
-from config import GOLD_API_KEY
+from config import API_KEY
 
 
-URL = "https://www.goldapi.io/api/XAU/USD"
+url = "https://www.alphavantage.co/query"
 
-
-headers = {
-    "x-access-token": GOLD_API_KEY,
-    "Content-Type": "application/json"
+params = {
+    "function": "TIME_SERIES_DAILY",
+    "symbol": "GLD",
+    "apikey": API_KEY
 }
 
 
-def fetch_gold_price():
-    response = requests.get(URL, headers=headers)
-    response.raise_for_status()
+def fetch_gold():
 
+    response = requests.get(url, params=params)
     data = response.json()
 
-    return {
-        "date": datetime.utcnow().date(),
-        "price": data["price"],
-        "source": "GoldAPI"
-    }
-
-
-def save_price():
-    session = get_session()
-
-    gold = fetch_gold_price()
-
-    exists = session.query(GoldPrice).filter_by(
-        price_date=gold["date"]
-    ).first()
-
-    if exists:
-        print("Today's price already exists.")
-        session.close()
+    if "Time Series (Daily)" not in data:
+        print(data)
         return
 
-    row = GoldPrice(
-        price_date=gold["date"],
-        price=gold["price"],
-        source=gold["source"]
-    )
+    prices = data["Time Series (Daily)"]
 
-    session.add(row)
+    session = get_session()
+
+    for date, values in prices.items():
+
+        gold = GoldPrice(
+            price_date=datetime.strptime(
+                date,
+                "%Y-%m-%d"
+            ).date(),
+
+            price=float(values["4. close"]),
+
+            source="AlphaVantage GLD"
+        )
+
+        session.add(gold)
+
     session.commit()
     session.close()
 
-    print("Gold price saved successfully.")
+    print("Gold prices saved successfully!")
 
 
 if __name__ == "__main__":
-    save_price()
+    fetch_gold()
