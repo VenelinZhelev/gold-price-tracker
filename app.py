@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, render_template
 from datetime import datetime
 
 from services.repository import (
@@ -20,6 +20,9 @@ def format_row(row):
         "source": row.source
     }
 
+@app.get("/chart")
+def chart():
+    return render_template("index.html")
 
 @app.get("/latest")
 def latest():

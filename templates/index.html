@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Gold Price Chart</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+
+<h2>Gold Price</h2>
+
+<select id="period">
+    <option value="30">Last 30 days</option>
+    <option value="90">Last 90 days</option>
+    <option value="365">Last 1 year</option>
+</select>
+
+<canvas id="chart" width="900" height="400"></canvas>
+
+<div id="stats"></div>
+
+<script>
+
+let chart;
+
+async function loadData(days){
+
+    const end = new Date();
+
+    const start = new Date();
+
+    start.setDate(end.getDate()-days);
+
+    const startStr = start.toISOString().slice(0,10);
+
+    const endStr = end.toISOString().slice(0,10);
+
+    const response = await fetch(`/prices?start=${startStr}&end=${endStr}`);
+
+    const data = await response.json();
+
+    const labels = data.map(x=>x.date);
+
+    const prices = data.map(x=>x.price);
+
+    if(chart){
+
+        chart.destroy();
+
+    }
+
+    chart = new Chart(document.getElementById("chart"),{
+
+        type:"line",
+
+        data:{
+
+            labels:labels,
+
+            datasets:[{
+
+                label:"Gold Price",
+
+                data:prices
+
+            }]
+
+        }
+
+    });
+
+    if(prices.length>0){
+
+        const first=prices[0];
+
+        const last=prices[prices.length-1];
+
+        const min=Math.min(...prices);
+
+        const max=Math.max(...prices);
+
+        const percent=((last-first)/first*100).toFixed(2);
+
+        document.getElementById("stats").innerHTML=`
+
+        <p>First: ${first}</p>
+
+        <p>Last: ${last}</p>
+
+        <p>Min: ${min}</p>
+
+        <p>Max: ${max}</p>
+
+        <p>Change: ${percent}%</p>
+
+        `;
+
+    }
+
+}
+
+document.getElementById("period").addEventListener("change",e=>{
+
+    loadData(Number(e.target.value));
+
+});
+
+loadData(30);
+
+</script>
+
+</body>
+</html>

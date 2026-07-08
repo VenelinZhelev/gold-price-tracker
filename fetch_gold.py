@@ -18,35 +18,60 @@ params = {
 def fetch_gold():
 
     response = requests.get(url, params=params)
+
     data = response.json()
 
     if "Time Series (Daily)" not in data:
         print(data)
         return
 
+
     prices = data["Time Series (Daily)"]
 
     session = get_session()
 
+    added = 0
+
+
     for date, values in prices.items():
 
+        price_date = datetime.strptime(
+            date,
+            "%Y-%m-%d"
+        ).date()
+
+
+        existing = session.query(GoldPrice).filter_by(
+            price_date=price_date
+        ).first()
+
+
+        if existing:
+            continue
+
+
         gold = GoldPrice(
-            price_date=datetime.strptime(
-                date,
-                "%Y-%m-%d"
-            ).date(),
+
+            price_date=price_date,
 
             price=float(values["4. close"]),
 
             source="AlphaVantage GLD"
+
         )
+
 
         session.add(gold)
 
+        added += 1
+
+
     session.commit()
+
     session.close()
 
-    print("Gold prices saved successfully!")
+
+    print(f"Added {added} records")
 
 
 if __name__ == "__main__":
