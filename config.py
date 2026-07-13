@@ -1,17 +1,14 @@
 import os
 from dotenv import load_dotenv
 
+
 load_dotenv()
 
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+
 API_KEY = os.getenv("API_KEY")
-GOLD_API_KEY = os.getenv("GOLD_API_KEY")
 
-DB_HOST = os.getenv("DB_HOST")
-DB_PORT = os.getenv("DB_PORT")
-DB_NAME = os.getenv("DB_NAME")
-DB_USER = os.getenv("DB_USER")
-DB_PASSWORD = os.getenv("DB_PASSWORD")
-
-DATABASE_URL = (
-    f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+TWELVE_DATA_KEY = os.getenv(
+    "TWELVE_DATA_KEY"
 )

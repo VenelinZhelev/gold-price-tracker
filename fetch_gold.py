@@ -1,64 +1,93 @@
 import requests
 from datetime import datetime
 
+from config import TWELVE_DATA_KEY
 from database.database import get_session
 from database.models import GoldPrice
-from config import API_KEY
 
 
-url = "https://www.alphavantage.co/query"
-
-params = {
-    "function": "TIME_SERIES_DAILY",
-    "symbol": "GLD",
-    "apikey": API_KEY
-}
+URL = "https://api.twelvedata.com/time_series"
 
 
 def fetch_gold():
 
-    response = requests.get(url, params=params)
+    params = {
+        "symbol": "XAU/USD",
+        "interval": "1day",
+        "outputsize": 200,
+        "apikey": TWELVE_DATA_KEY
+    }
 
-    data = response.json()
 
-    if "Time Series (Daily)" not in data:
+    try:
+        response = requests.get(
+            URL,
+            params=params,
+            timeout=10
+        )
+
+        response.raise_for_status()
+
+        data = response.json()
+
+
+    except requests.RequestException as e:
+        print(f"API error: {e}")
+        return
+
+
+
+    if "values" not in data:
+        print("Invalid API response")
         print(data)
         return
 
 
-    prices = data["Time Series (Daily)"]
 
     session = get_session()
 
     added = 0
 
 
-    for date, values in prices.items():
+    for item in data["values"]:
+
 
         price_date = datetime.strptime(
-            date,
+            item["datetime"],
             "%Y-%m-%d"
         ).date()
 
 
+
         existing = session.query(GoldPrice).filter_by(
-            price_date=price_date
+            price_date=price_date,
+            source="Twelve Data XAU/USD"
         ).first()
+
 
 
         if existing:
             continue
 
 
+
+        price = float(item["close"])
+
+
+
+        if price <= 0:
+            continue
+
+
+
         gold = GoldPrice(
-
             price_date=price_date,
-
-            price=float(values["4. close"]),
-
-            source="AlphaVantage GLD"
-
+            price=price,
+            currency="USD",
+            unit="troy ounce",
+            source="Twelve Data XAU/USD"
         )
+
 
 
         session.add(gold)
@@ -66,12 +95,14 @@ def fetch_gold():
         added += 1
 
 
+
     session.commit()
 
     session.close()
 
 
-    print(f"Added {added} records")
+    print(f"Added {added} gold records")
+
 
 
 if __name__ == "__main__":
