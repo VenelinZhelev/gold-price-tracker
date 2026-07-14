@@ -115,11 +115,6 @@ def range_prices():
             "error": "Invalid date format. Use YYYY-MM-DD"
         }), 400
 
-    if not start or not end:
-        return jsonify({
-            "error": "start and end are required"
-    }), 400
-
     if start_date > end_date:
         return jsonify({
             "error": "start date cannot be after end date"

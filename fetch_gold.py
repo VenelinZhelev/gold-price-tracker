@@ -10,6 +10,9 @@ URL = "https://api.twelvedata.com/time_series"
 
 
 def fetch_gold():
+    if not TWELVE_DATA_KEY:
+        print("Missing API key")
+        return
 
     params = {
         "symbol": "XAU/USD",
@@ -30,6 +33,9 @@ def fetch_gold():
 
         data = response.json()
 
+        if data.get("status") == "error":
+            print(data.get("message"))
+            return
 
     except requests.RequestException as e:
         print(f"API error: {e}")
@@ -37,68 +43,55 @@ def fetch_gold():
 
 
 
-    if "values" not in data:
-        print("Invalid API response")
-        print(data)
+    if "values" not in data or not data["values"]:
+        print("No data returned from API")
         return
 
 
 
     session = get_session()
 
-    added = 0
+    try:
 
+        added = 0
 
-    for item in data["values"]:
+        for item in data["values"]:
 
+            price_date = datetime.strptime(
+                item["datetime"],
+                "%Y-%m-%d"
+            ).date()
 
-        price_date = datetime.strptime(
-            item["datetime"],
-            "%Y-%m-%d"
-        ).date()
+            existing = session.query(GoldPrice).filter_by(
+                price_date=price_date,
+                source="Twelve Data XAU/USD"
+            ).first()
 
+            if existing:
+                continue
 
+            price = float(item["close"])
 
-        existing = session.query(GoldPrice).filter_by(
-            price_date=price_date,
-            source="Twelve Data XAU/USD"
-        ).first()
+            if price <= 0:
+                print(f"Invalid price for {price_date}")
+                continue
 
+            gold = GoldPrice(
+                price_date=price_date,
+                price=price,
+                currency="USD",
+                unit="troy ounce",
+                source="Twelve Data XAU/USD"
+            )
 
+            session.add(gold)
 
-        if existing:
-            continue
+            added += 1
 
+        session.commit()
 
-
-        price = float(item["close"])
-
-
-
-        if price <= 0:
-            continue
-
-
-
-        gold = GoldPrice(
-            price_date=price_date,
-            price=price,
-            currency="USD",
-            unit="troy ounce",
-            source="Twelve Data XAU/USD"
-        )
-
-
-
-        session.add(gold)
-
-        added += 1
-
-
-
-    session.commit()
-
-    session.close()
+    finally:
+        session.close()
 
 
     print(f"Added {added} gold records")
